@@ -3,38 +3,35 @@ import socket
 import threading
 
 def handle_client(conn, addr):
-    """
-    Обрабатывает соединение от CPS.
-    Определяет внешний IP и порт (адрес, с которого пришёл запрос)
-    и отправляет их обратно.
-    """
-    external_ip, external_port = addr[0], addr[1]
+    external_ip, external_port = addr
     response = f"{external_ip}:{external_port}"
-    print(f"Получен запрос от {external_ip}:{external_port}, отправляю ответ: {response}")
+    print(f"[HANDSHAKE] От {external_ip}:{external_port}, отправляю: {response}")
+
     try:
         conn.sendall(response.encode())
-        # Поддерживаем соединение открытым, пока CPS не разорвет его
         while True:
             data = conn.recv(1024)
             if not data:
+                print(f"[DISCONNECT] {external_ip}:{external_port} отключился.")
                 break
+            print(f"[HEARTBEAT] от {external_ip}:{external_port}: {data.decode(errors='ignore')}")
     except Exception as e:
-        print("Ошибка в обработке соединения:", e)
+        print(f"[ERROR] Ошибка в соединении с {external_ip}:{external_port} — {e}")
     finally:
         conn.close()
-        print(f"Соединение с {external_ip}:{external_port} закрыто")
+        print(f"[CLOSE] Соединение закрыто с {external_ip}:{external_port}")
 
 def run_scop_server():
-    host = ''  # слушаем на всех интерфейсах
+    host = ''
     port = 9000
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind((host, port))
     server.listen(5)
-    print(f"SCOP сервер запущен, слушает порт {port}")
+    print(f"[START] SCOP сервер слушает порт {port}")
 
     while True:
         conn, addr = server.accept()
-        print(f"Установлено соединение от {addr}")
+        print(f"[CONNECT] Новое соединение от {addr}")
         threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
 
 if __name__ == '__main__':
